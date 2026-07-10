@@ -1,8 +1,8 @@
 [app]
 
 # App info
-title = PLAYTREE
-package.name = playtree
+title = PLAYTREE TV
+package.name = playtree.tv
 package.domain = org.rhystech
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,txt,json
@@ -46,15 +46,6 @@ android.debug_artifact = apk
 log_level = 2
 warn_on_root = 0
 
-# iOS (not used but required)
-ios.kivy_ios_url = https://github.com/kivy/kivy-ios
-ios.kivy_ios_branch = master
-ios.ios_deploy_endpoint_release = 
-ios.ios_deploy_endpoint_debug = 
-
 # P4A
 p4a.branch = develop
 p4a.bootstrap = sdl2
-
-# Presplash
-#presplash.color = #102015

@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build All Platforms
 
 on:
   push:
@@ -8,7 +8,104 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  # ─── WINDOWS ───────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyinstaller pygame-ce
+
+      - name: Build Windows EXE
+        run: |
+          cd playtree
+          python -m PyInstaller --name PLAYTREE --onefile --windowed --add-data "src;src" --hidden-import pygame main.py
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: PLAYTREE-windows
+          path: playtree/dist/PLAYTREE.exe
+          retention-days: 30
+
+  # ─── LINUX ─────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libfreetype6-dev \
+            libportmidi-dev
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller pygame-ce
+
+      - name: Build Linux Binary
+        run: |
+          cd playtree
+          python -m PyInstaller --name PLAYTREE --onefile --add-data "src:src" --hidden-import pygame main.py
+
+      - name: Make executable
+        run: chmod +x playtree/dist/PLAYTREE
+
+      - name: Upload Linux Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: PLAYTREE-linux
+          path: playtree/dist/PLAYTREE
+          retention-days: 30
+
+  # ─── MACOS ─────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyinstaller pygame-ce
+
+      - name: Build macOS APP
+        run: |
+          cd playtree
+          python -m PyInstaller --name PLAYTREE --windowed --onefile --add-data "src:src" --hidden-import pygame main.py
+
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "PLAYTREE" -srcfolder playtree/dist/PLAYTREE.app -ov -format UDZO playtree/dist/PLAYTREE.dmg
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: PLAYTREE-macos
+          path: playtree/dist/PLAYTREE.dmg
+          retention-days: 30
+
+  # ─── ANDROID (MOBILE) ─────────────────────────────────────
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,61 +140,205 @@ jobs:
       - name: Install Buildozer
         run: pip install buildozer cython
 
-      - name: Build APK
+      - name: Build Android APK
         run: |
           cd playtree
           yes | buildozer android debug
         env:
           DISPLAY: ':99'
 
-      - name: Upload APK
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: PLAYTREE.apk
+          name: PLAYTREE-android
           path: playtree/bin/*.apk
           retention-days: 30
 
-  build-exe:
-    runs-on: windows-latest
+  # ─── ANDROID TV ────────────────────────────────────────────
+  build-android-tv:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pyinstaller pygame-ce
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            python3-pip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            libltdl-dev \
+            automake \
+            zip \
+            unzip \
+            openjdk-17-jdk
 
-      - name: Build Windows EXE
+      - name: Install Buildozer
+        run: pip install buildozer cython
+
+      - name: Build Android TV APK
         run: |
           cd playtree
-          python -m PyInstaller --name PLAYTREE --onefile --windowed --add-data "src;src" --hidden-import pygame main.py
+          yes | buildozer android debug
+        env:
+          DISPLAY: ':99'
+          BUILDOzerSpec: buildozer.tv.spec
 
-      - name: Upload EXE
+      - name: Upload Android TV APK
         uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: PLAYTREE.exe
-          path: playtree/dist/PLAYTREE.exe
+          name: PLAYTREE-android-tv
+          path: playtree/bin/*.apk
           retention-days: 30
 
+  # ─── iOS ───────────────────────────────────────────────────
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          brew update
+          brew install autoconf automake libtool pkg-config cmake
+
+      - name: Install kivy-ios
+        run: |
+          pip install kivy-ios
+          toolchain build python3 kivy pygame-ce sdl2 sdl2_image sdl2_mixer sdl2_ttf
+
+      - name: Create iOS Xcode project
+        run: |
+          cd playtree
+          toolchain create playtree . --requirements=python3,kivy,pygame-ce,sdl2,sdl2_image,sdl2_mixer,sdl2_ttf
+
+      - name: Build iOS IPA (unsigned)
+        run: |
+          cd playtree/build/ios/playtree
+          xcodebuild -project playtree.xcodeproj \
+            -scheme playtree \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO || true
+
+      - name: Package IPA
+        run: |
+          mkdir -p playtree/build/ios/ipa/Payload
+          if [ -d "playtree/build/ios/playtree/build/Release-iphoneos/playtree.app" ]; then
+            cp -r playtree/build/ios/playtree/build/Release-iphoneos/playtree.app playtree/build/ios/ipa/Payload/
+            cd playtree/build/ios/ipa
+            zip -r ../../../dist/PLAYTREE.ipa Payload
+          fi
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        if: hashFiles('playtree/dist/PLAYTREE.ipa') != ''
+        with:
+          name: PLAYTREE-ios
+          path: playtree/dist/PLAYTREE.ipa
+          retention-days: 30
+
+  # ─── APPLE TV (tvOS) ──────────────────────────────────────
+  build-apple-tv:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          brew update
+          brew install autoconf automake libtool pkg-config cmake
+
+      - name: Install kivy-ios
+        run: |
+          pip install kivy-ios
+          toolchain build python3 kivy pygame-ce sdl2 sdl2_image sdl2_mixer sdl2_ttf
+
+      - name: Create tvOS Xcode project
+        run: |
+          cd playtree
+          toolchain create playtree . --requirements=python3,kivy,pygame-ce,sdl2,sdl2_image,sdl2_mixer,sdl2_ttf
+
+      - name: Build tvOS IPA (unsigned)
+        run: |
+          cd playtree/build/ios/playtree
+          xcodebuild -project playtree.xcodeproj \
+            -scheme playtree \
+            -configuration Release \
+            -sdk appletvos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO || true
+
+      - name: Package tvOS IPA
+        run: |
+          mkdir -p playtree/build/ios/ipa/Payload
+          if [ -d "playtree/build/ios/playtree/build/Release-appletvos/playtree.app" ]; then
+            cp -r playtree/build/ios/playtree/build/Release-appletvos/playtree.app playtree/build/ios/ipa/Payload/
+            cd playtree/build/ios/ipa
+            zip -r ../../../dist/PLAYTREE-tv.ipa Payload
+          fi
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload tvOS IPA
+        uses: actions/upload-artifact@v4
+        if: hashFiles('playtree/dist/PLAYTREE-tv.ipa') != ''
+        with:
+          name: PLAYTREE-apple-tv
+          path: playtree/dist/PLAYTREE-tv.ipa
+          retention-days: 30
+
+  # ─── RELEASE ───────────────────────────────────────────────
   release:
-    needs: [build, build-exe]
+    needs: [build-windows, build-linux, build-macos, build-android, build-android-tv]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
+
+      - name: List artifacts
+        run: ls -laR
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            PLAYTREE.apk/*.apk
-            PLAYTREE.exe/PLAYTREE.exe
+            PLAYTREE-windows/PLAYTREE.exe
+            PLAYTREE-linux/PLAYTREE
+            PLAYTREE-macos/PLAYTREE.dmg
+            PLAYTREE-android/*.apk
+            PLAYTREE-android-tv/*.apk
+            PLAYTREE-ios/PLAYTREE.ipa
+            PLAYTREE-apple-tv/PLAYTREE-tv.ipa
           generate_release_notes: true
