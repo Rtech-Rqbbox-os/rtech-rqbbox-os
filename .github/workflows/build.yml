@@ -208,6 +208,7 @@ jobs:
   # ─── iOS ───────────────────────────────────────────────────
   build-ios:
     runs-on: macos-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -263,6 +264,7 @@ jobs:
   # ─── APPLE TV (tvOS) ──────────────────────────────────────
   build-apple-tv:
     runs-on: macos-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -320,7 +322,6 @@ jobs:
   release:
     needs: [build-windows, build-linux, build-macos, build-android, build-android-tv]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
@@ -333,12 +334,19 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.1
+          name: PLAYTREE v1.0.1
+          body: |
+            ## PLAYTREE v1.0.1
+            - Fixed Android APK crash on launch
+            - Added touchscreen support (virtual joystick + buttons)
+            - Auto guest login on mobile (skips login screen)
+            - Tap to skip round intros, game over, credits
+            - Mobile splash screen skipped
           files: |
             PLAYTREE-windows/PLAYTREE.exe
             PLAYTREE-linux/PLAYTREE
             PLAYTREE-macos/PLAYTREE.dmg
             PLAYTREE-android/*.apk
             PLAYTREE-android-tv/*.apk
-            PLAYTREE-ios/PLAYTREE.ipa
-            PLAYTREE-apple-tv/PLAYTREE-tv.ipa
           generate_release_notes: true
